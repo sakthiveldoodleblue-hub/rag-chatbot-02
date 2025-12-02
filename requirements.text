@@ -1,0 +1,11 @@
+streamlit
+pymongo[srv]
+langchain-google-genai
+langchain-community
+langchain-core
+langchain-text-splitters
+faiss-cpu
+numpy
+scikit-learn
+tiktoken
+python-dotenv
