@@ -1,5 +1,5 @@
-streamlit
 pymongo[srv]
+streamlit
 langchain-google-genai
 langchain-community
 langchain-core
@@ -8,4 +8,3 @@ faiss-cpu
 numpy
 scikit-learn
 tiktoken
-python-dotenv
