@@ -2,6 +2,8 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 class EmbeddingIntentClassifier:
+    """Classify user intents using embeddings and cosine similarity"""
+    
     def __init__(self, embeddings_model):
         self.embeddings_model = embeddings_model
         self.intent_templates = {
@@ -20,10 +22,12 @@ class EmbeddingIntentClassifier:
                 "Stock availability",
                 "Product pricing",
                 "Sales statistics",
-                "Business analytics"
+                "Business analytics",
+                "Show me transaction history",
+                "What are our best sellers?"
             ], 
             "CUSTOMER_HISTORY": [
-                 "Show my purchase history",
+                "Show my purchase history",
                 "What did I buy?",
                 "My previous orders",
                 "My transaction history",
@@ -37,9 +41,12 @@ class EmbeddingIntentClassifier:
                 "My shopping history",
                 "Previous purchases",
                 "Order history for email",
-                "Track my orders"
+                "Track my orders",
+                "Look up customer",
+                "Find customer transactions"
             ],
-            "SUPPORT": ["I have a problem",
+            "SUPPORT": [
+                "I have a problem",
                 "Need help with my order",
                 "Product is broken",
                 "Issue with delivery",
@@ -53,18 +60,51 @@ class EmbeddingIntentClassifier:
                 "Call customer care",
                 "Urgent help required",
                 "Refund request",
-                "Product defect"
-                ]
+                "Product defect",
+                "Create support ticket",
+                "I need support"
+            ]
         }
+        
         print("\n🧠 Pre-computing intent template embeddings...")
         self.intent_embeddings = {}
-        for intent, templates in self.intent_templates.items():
-            embeddings = self.embeddings_model.embed_documents(templates)
-            self.intent_embeddings[intent] = np.mean(embeddings, axis=0)
+        
+        try:
+            for intent, templates in self.intent_templates.items():
+                # Embed all templates for this intent
+                embeddings = self.embeddings_model.embed_documents(templates)
+                # Average the embeddings to get intent representation
+                self.intent_embeddings[intent] = np.mean(embeddings, axis=0)
+            
+            print(f"✅ Intent templates loaded: {list(self.intent_templates.keys())}")
+        
+        except Exception as e:
+            print(f"Error initializing intent classifier: {str(e)}")
+            raise
 
     def classify(self, question):
-        question_embedding = self.embeddings_model.embed_query(question)
-        sims = {intent: cosine_similarity([question_embedding], [embed])[0][0]
-                for intent, embed in self.intent_embeddings.items()}
-        best_intent = max(sims, key=sims.get)
-        return best_intent, sims[best_intent]
+        """Classify question intent and return intent and confidence"""
+        
+        try:
+            # Get embedding for the question
+            question_embedding = self.embeddings_model.embed_query(question)
+            
+            # Calculate cosine similarity with each intent
+            similarities = {}
+            for intent, intent_embedding in self.intent_embeddings.items():
+                similarity = cosine_similarity(
+                    [question_embedding],
+                    [intent_embedding]
+                )[0][0]
+                similarities[intent] = float(similarity)
+            
+            # Get the intent with highest similarity
+            best_intent = max(similarities, key=similarities.get)
+            best_score = similarities[best_intent]
+            
+            return best_intent, best_score
+        
+        except Exception as e:
+            print(f"Error during intent classification: {str(e)}")
+            # Return default intent on error
+            return "SEARCH_DB", 0.5
