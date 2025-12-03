@@ -1,25 +1,11 @@
-# Core Framework
-streamlit==1.31.0
-
-# Database
+streamlit==1.29.0
 pymongo==4.6.1
-
-# LLM and Embeddings
-langchain==0.1.6
-langchain-google-genai==0.0.9
-langchain-community==0.0.20
-langchain-core==0.1.23
-
-# Vector Store
-faiss-cpu==1.7.4
-
-# Text Processing
-langchain-text-splitters==0.0.1
+python-dotenv==1.0.0
+langchain==0.2.16
+langchain-google-genai==1.0.10
+langchain-community==0.2.17
+faiss-cpu==1.8.0
+google-generativeai==0.7.2
+scikit-learn==1.5.0
+numpy>=1.26.0
 tiktoken==0.5.2
-
-# Machine Learning
-scikit-learn==1.4.0
-numpy==1.26.3
-
-# Utilities
-python-dotenv==1.0.1
