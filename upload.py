@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import streamlit as st
 import logging
+from pymongo.errors import BulkWriteError
 
 # Configure logging
 logging.basicConfig(
@@ -138,26 +139,67 @@ def upload_json_to_mongodb(json_file_path: str, collections, clear_existing: boo
         
         logger.info(f"Document processing complete. Success: {processed_count}, Errors: {error_count}")
         
-        # Insert data into MongoDB
+        # Insert data into MongoDB with upsert for customers and products
         inserted_counts = {"customers": 0, "products": 0, "transactions": 0}
         
+        # UPSERT customers (update if exists, insert if new)
         if customers_dict:
-            logger.info(f"Inserting {len(customers_dict)} customers...")
-            result = collections["customers"].insert_many(list(customers_dict.values()))
-            inserted_counts["customers"] = len(result.inserted_ids)
-            logger.info(f"✓ Inserted {inserted_counts['customers']} customers")
+            logger.info(f"Upserting {len(customers_dict)} customers...")
+            upserted_count = 0
+            updated_count = 0
+            
+            for customer in customers_dict.values():
+                try:
+                    result = collections["customers"].update_one(
+                        {"customer_id": customer["customer_id"]},
+                        {"$set": customer},
+                        upsert=True
+                    )
+                    if result.upserted_id:
+                        upserted_count += 1
+                    elif result.modified_count > 0:
+                        updated_count += 1
+                except Exception as e:
+                    logger.warning(f"Error upserting customer {customer['customer_id']}: {e}")
+            
+            inserted_counts["customers"] = upserted_count
+            logger.info(f"✓ Customers - Inserted: {upserted_count}, Updated: {updated_count}")
         
+        # UPSERT products (update if exists, insert if new)
         if products_dict:
-            logger.info(f"Inserting {len(products_dict)} products...")
-            result = collections["products"].insert_many(list(products_dict.values()))
-            inserted_counts["products"] = len(result.inserted_ids)
-            logger.info(f"✓ Inserted {inserted_counts['products']} products")
+            logger.info(f"Upserting {len(products_dict)} products...")
+            upserted_count = 0
+            updated_count = 0
+            
+            for product in products_dict.values():
+                try:
+                    result = collections["products"].update_one(
+                        {"product_id": product["product_id"]},
+                        {"$set": product},
+                        upsert=True
+                    )
+                    if result.upserted_id:
+                        upserted_count += 1
+                    elif result.modified_count > 0:
+                        updated_count += 1
+                except Exception as e:
+                    logger.warning(f"Error upserting product {product['product_id']}: {e}")
+            
+            inserted_counts["products"] = upserted_count
+            logger.info(f"✓ Products - Inserted: {upserted_count}, Updated: {updated_count}")
         
+        # INSERT transactions (always insert new transactions)
         if transactions:
             logger.info(f"Inserting {len(transactions)} transactions...")
-            result = collections["transactions"].insert_many(transactions)
-            inserted_counts["transactions"] = len(result.inserted_ids)
-            logger.info(f"✓ Inserted {inserted_counts['transactions']} transactions")
+            try:
+                result = collections["transactions"].insert_many(transactions, ordered=False)
+                inserted_counts["transactions"] = len(result.inserted_ids)
+                logger.info(f"✓ Inserted {inserted_counts['transactions']} transactions")
+            except BulkWriteError as e:
+                # Some transactions may have been inserted before error
+                inserted_counts["transactions"] = e.details.get('nInserted', 0)
+                logger.warning(f"Partial transaction insert: {inserted_counts['transactions']} succeeded")
+                logger.error(f"BulkWriteError: {e.details}")
         
         logger.info(f"Upload complete! Total transactions: {inserted_counts['transactions']}")
         return inserted_counts["transactions"]
