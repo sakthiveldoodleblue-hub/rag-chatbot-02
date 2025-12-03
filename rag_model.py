@@ -19,7 +19,7 @@ def build_rag_model(api_key, transactions_collection):
             
             # Initialize embeddings
             embeddings = GoogleGenerativeAIEmbeddings(
-                model="models/gemini-embedding-001",
+                model="models/text-embedding-004",
                 google_api_key=api_key
             )
             
@@ -77,4 +77,5 @@ Answer:"""
     except Exception as e:
         st.error(f"Error building RAG model: {str(e)}")
         raise
+
 
