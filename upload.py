@@ -2,25 +2,65 @@ from datetime import datetime
 from pathlib import Path
 import json
 import streamlit as st
+import logging
 
-def upload_json_to_mongodb(json_file_path: str, collections) -> int:
-    """Upload and parse JSON file into MongoDB collections"""
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('chatbot.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+def upload_json_to_mongodb(json_file_path: str, collections, clear_existing: bool = True) -> int:
+    """Upload and parse JSON file into MongoDB collections
+    
+    Args:
+        json_file_path: Path to JSON file
+        collections: MongoDB collections dict
+        clear_existing: If True, delete existing data before upload
+    
+    Returns:
+        Number of transactions uploaded
+    """
+    
+    logger.info(f"Starting upload process for file: {json_file_path}")
+    logger.info(f"Clear existing data: {clear_existing}")
     
     if not Path(json_file_path).exists():
+        logger.error(f"File not found: {json_file_path}")
         raise FileNotFoundError(f"JSON file not found: {json_file_path}")
     
     try:
+        # Read JSON file
+        logger.info("Reading JSON file...")
         with open(json_file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
         # Handle both list and dict formats
         documents = data if isinstance(data, list) else [data]
+        logger.info(f"Total documents in file: {len(documents)}")
         
-        # Limit to 100 documents for initial testing
+        # Limit to first 100 documents
         documents = documents[:100]
+        logger.info(f"Processing first 100 documents (actual: {len(documents)})")
         
         if not documents:
+            logger.error("No documents found in JSON file")
             raise ValueError("No documents found in JSON file")
+        
+        # Clear existing data if requested
+        if clear_existing:
+            logger.info("Clearing existing data from collections...")
+            customers_deleted = collections["customers"].delete_many({}).deleted_count
+            products_deleted = collections["products"].delete_many({}).deleted_count
+            transactions_deleted = collections["transactions"].delete_many({}).deleted_count
+            logger.info(f"Deleted: {customers_deleted} customers, {products_deleted} products, {transactions_deleted} transactions")
+        else:
+            logger.info("Keeping existing data (append mode)")
         
         # Initialize storage dicts
         customers_dict = {}
@@ -28,7 +68,11 @@ def upload_json_to_mongodb(json_file_path: str, collections) -> int:
         transactions = []
         
         # Process each document
-        for doc in documents:
+        logger.info("Processing documents...")
+        processed_count = 0
+        error_count = 0
+        
+        for idx, doc in enumerate(documents, 1):
             try:
                 # Extract customer data
                 cid = str(doc.get("Customer ID", "UNKNOWN")).strip()
@@ -42,6 +86,7 @@ def upload_json_to_mongodb(json_file_path: str, collections) -> int:
                         "loyalty_tier": str(doc.get("Loyalty_Tier", "Regular")).strip(),
                         "created_at": datetime.now()
                     }
+                    logger.debug(f"Added new customer: {cid}")
                 
                 # Extract product data
                 pid = str(doc.get("ID_product", "UNKNOWN")).strip()
@@ -56,6 +101,7 @@ def upload_json_to_mongodb(json_file_path: str, collections) -> int:
                                         if doc.get("Margin_per_piece_percent") else 0,
                         "created_at": datetime.now()
                     }
+                    logger.debug(f"Added new product: {pid}")
                 
                 # Extract transaction data
                 transactions.append({
@@ -80,30 +126,45 @@ def upload_json_to_mongodb(json_file_path: str, collections) -> int:
                     "status": "completed",
                     "created_at": datetime.now()
                 })
+                processed_count += 1
+                
+                if idx % 25 == 0:
+                    logger.info(f"Processed {idx}/{len(documents)} documents...")
             
             except Exception as e:
-                print(f"Warning: Error processing document: {str(e)}")
+                error_count += 1
+                logger.warning(f"Error processing document {idx}: {str(e)}")
                 continue
         
-        # Clear existing data
-        collections["customers"].delete_many({})
-        collections["products"].delete_many({})
-        collections["transactions"].delete_many({})
+        logger.info(f"Document processing complete. Success: {processed_count}, Errors: {error_count}")
         
         # Insert data into MongoDB
+        inserted_counts = {"customers": 0, "products": 0, "transactions": 0}
+        
         if customers_dict:
-            collections["customers"].insert_many(list(customers_dict.values()))
+            logger.info(f"Inserting {len(customers_dict)} customers...")
+            result = collections["customers"].insert_many(list(customers_dict.values()))
+            inserted_counts["customers"] = len(result.inserted_ids)
+            logger.info(f"✓ Inserted {inserted_counts['customers']} customers")
         
         if products_dict:
-            collections["products"].insert_many(list(products_dict.values()))
+            logger.info(f"Inserting {len(products_dict)} products...")
+            result = collections["products"].insert_many(list(products_dict.values()))
+            inserted_counts["products"] = len(result.inserted_ids)
+            logger.info(f"✓ Inserted {inserted_counts['products']} products")
         
         if transactions:
+            logger.info(f"Inserting {len(transactions)} transactions...")
             result = collections["transactions"].insert_many(transactions)
-            return len(result.inserted_ids)
+            inserted_counts["transactions"] = len(result.inserted_ids)
+            logger.info(f"✓ Inserted {inserted_counts['transactions']} transactions")
         
-        return 0
+        logger.info(f"Upload complete! Total transactions: {inserted_counts['transactions']}")
+        return inserted_counts["transactions"]
     
     except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format: {str(e)}")
         raise ValueError(f"Invalid JSON format: {str(e)}")
     except Exception as e:
+        logger.error(f"Error uploading data: {str(e)}", exc_info=True)
         raise Exception(f"Error uploading data: {str(e)}")
