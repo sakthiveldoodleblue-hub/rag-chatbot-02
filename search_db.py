@@ -1,7 +1,7 @@
 import streamlit as st
 
 def handle_search_db(question, qa_chain, chat_history):
-    """Handle database search using RAG chain"""
+    """Handle database search using RAG chain for both products and customers"""
     
     try:
         # Prepare chat history in the required format
