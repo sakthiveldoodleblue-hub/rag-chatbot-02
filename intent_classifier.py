@@ -8,6 +8,7 @@ class EmbeddingIntentClassifier:
         self.embeddings_model = embeddings_model
         self.intent_templates = {
             "SEARCH_DB": [
+                # Product-related queries
                 "What products do you have?",
                 "Show me sales data",
                 "How many items sold?",
@@ -24,9 +25,35 @@ class EmbeddingIntentClassifier:
                 "Sales statistics",
                 "Business analytics",
                 "Show me transaction history",
-                "What are our best sellers?"
+                "What are our best sellers?",
+                
+                # Customer-related queries (general database queries)
+                "How many customers do we have?",
+                "List all customers",
+                "Show customer information",
+                "What customers are from a specific city?",
+                "Customer demographics",
+                "Total number of customers",
+                "Customer list",
+                "Show all customer names",
+                "Which customers bought the most?",
+                "Customer purchase patterns",
+                "Top customers by revenue",
+                "Customer details",
+                "Search for customer by name",
+                "Find customer information",
+                "Show customer data",
+                "Customer analytics",
+                "Customer statistics",
+                "Who are our biggest customers?",
+                "Customer segmentation data",
+                "List customers by location",
+                "Customer contact information",
+                "Show customer emails",
+                "Customer phone numbers"
             ], 
             "CUSTOMER_HISTORY": [
+                # Specific customer transaction history
                 "Show my purchase history",
                 "What did I buy?",
                 "My previous orders",
@@ -42,8 +69,11 @@ class EmbeddingIntentClassifier:
                 "Previous purchases",
                 "Order history for email",
                 "Track my orders",
-                "Look up customer",
-                "Find customer transactions"
+                "Look up customer orders",
+                "Find customer transactions",
+                "What did customer X purchase?",
+                "Show orders for this customer",
+                "Customer purchase history"
             ],
             "SUPPORT": [
                 "I have a problem",
