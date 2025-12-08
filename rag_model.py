@@ -31,7 +31,7 @@ def build_rag_model(api_key, transactions_collection):
             
             # Initialize LLM
             llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
                 temperature=0.3,
                 max_output_tokens=1500,
                 google_api_key=api_key
@@ -77,5 +77,6 @@ Answer:"""
     except Exception as e:
         st.error(f"Error building RAG model: {str(e)}")
         raise
+
 
 
